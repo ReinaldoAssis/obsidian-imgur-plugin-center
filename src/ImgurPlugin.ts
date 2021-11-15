@@ -1,6 +1,14 @@
 /* eslint-disable no-param-reassign */
 /* eslint-disable no-underscore-dangle */
-import { Editor, MarkdownView, Notice, Plugin } from "obsidian";
+import {
+  Editor,
+  MarkdownView,
+  Menu,
+  Notice,
+  parseLinktext,
+  Plugin,
+  View,
+} from "obsidian";
 import * as CodeMirror from "codemirror";
 import ImageUploader from "./uploader/ImageUploader";
 // eslint-disable-next-line import/no-cycle
@@ -222,6 +230,48 @@ export default class ImgurPlugin extends Plugin {
         }
       };
     });
+
+    this.registerEvent(
+      this.app.workspace.on(
+        "editor-menu",
+        (menu: Menu, editor: Editor, view: MarkdownView) => {
+          menu.addItem((item) => {
+            item
+              .setTitle("Upload to Imgur")
+              .setIcon("wand")
+              .onClick(async () => {
+                const clickable = editor.getClickableTokenAt(
+                  editor.getCursor()
+                );
+
+                const lt = parseLinktext(clickable.text);
+                const file = this.app.metadataCache.getFirstLinkpathDest(
+                  lt.path,
+                  view.file.path
+                );
+
+                const arrayBuffer = await this.app.vault.readBinary(file);
+
+                const fileToUpload = new File([arrayBuffer], file.name);
+
+                // console.log(blob);
+
+                this.uploadFileAndEmbedImgurImage(fileToUpload)
+                  .then(() => view.app.vault.trash(file, true))
+                  .catch((ee) => console.log(ee));
+
+                // console.log(file);
+                // console.log(this.app.metadataCache.getFileCache(file.path));
+
+                // this.app.vault
+                //   .trash(file, true)
+                //   .then(() => {})
+                //   .catch(() => {});
+              });
+          });
+        }
+      )
+    );
   }
 
   private static composeNewDragEvent(
